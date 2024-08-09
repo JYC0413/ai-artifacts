@@ -7,7 +7,6 @@ import {
   StreamTextResult,
   tool,
 } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
 
 import {
   runPython,
@@ -16,6 +15,7 @@ import {
 import { SandboxTemplate } from '@/lib/types'
 import { prompt as dataAnalystPrompt } from '@/lib/python-analyst-prompt'
 import { prompt as nextjsPrompt } from '@/lib/nextjs-prompt'
+import {createOpenAI} from "@ai-sdk/openai";
 
 export interface ServerMessage {
   role: 'user' | 'assistant' | 'function';
@@ -29,10 +29,16 @@ export async function POST(req: Request) {
   let data: StreamData = new StreamData()
   let result: StreamTextResult<any>
 
+    const openai = createOpenAI({
+        baseURL: "http://127.0.0.1:10086/v1"
+        // apiKey: "sk-None-jjYDD49GWvki96tejtO6T3BlbkFJO8Mp3jAaAOQKd2OLRMFU"
+    });
+    const model = openai('Mistral-7B-Instruct-v0.3')
+    // const model = openai('gpt-4o')
 
   if (template === SandboxTemplate.CodeInterpreterMultilang) {
     result = await streamText({
-      model: anthropic('claude-3-5-sonnet-20240620'),
+      model: model,
       tools: {
         runPython: tool({
           description: 'Runs Python code.',
@@ -73,7 +79,7 @@ export async function POST(req: Request) {
     })
   } else if (template === SandboxTemplate.NextJS) {
     result = await streamText({
-      model: anthropic('claude-3-5-sonnet-20240620'),
+      model: model,
       tools: {
         writeCodeToPageTsx: tool({
           description: 'Writes TSX code to the page.tsx file. You can use tailwind classes.',
@@ -111,11 +117,14 @@ export async function POST(req: Request) {
     throw new Error('Invalid sandbox template')
   }
 
-  const stream = result.toAIStream({
-    async onFinal() {
-      await data.close()
-    }
-  })
+  console.log(result.toAIStreamResponse())
+  // return result.toAIStreamResponse()
 
-  return new StreamingTextResponse(stream, {}, data);
+  // const stream = result.toAIStream({
+  //   async onFinal() {
+  //     await data.close()
+  //   }
+  // })
+  //
+  // return new StreamingTextResponse(stream, {}, data);
 }
